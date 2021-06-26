@@ -1,22 +1,18 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
+
 # -*- coding: utf-8 -*-
 #Transform text in wav audio
 #exec : text2wav.py
 
-import os, sys, getopt
+import os
+import sys
+import argparse
 
 #limit char of pico2wave
 limit_char = 30000
+
 #choose default language between: 'en-US','en-GB','de-DE','es-ES','fr-FR','it-IT'
 default_lang = 'en-GB'
-
-#get text from file
-def text_file(arg):
-    try:
-        f = open(arg, 'r')
-    except IOError:
-        return "Error: file not found"
-    return f.read()
 
 #cut the text by sentence
 def casier_txt(list_txt):
@@ -45,10 +41,6 @@ def casier_txt(list_txt):
 
 # execute command line pico2wave
 def text_to_speech(txt, lang):
-    list_lang = ['en-US', 'en-GB', 'de-DE', 'es-ES', 'fr-FR', 'it-IT']
-    if lang not in list_lang:
-        lang = default_lang
-
     txt = txt.replace('"', '')
     total_letter = len(txt)
     if total_letter > 1:
@@ -69,61 +61,27 @@ def text_to_speech(txt, lang):
         if value:
             value =' '.join(value)
             print("Vocalising in %s ..." % (lang))
-            os.system('pico2wave -l %s -w /tmp/out.wav "%s" | ffmpeg -i - -ar 48000 -ac 1 -ab 64k -f mp3 %d.mp3 -y' % (lang, value, index + 1))
-            os.system('cat %d.mp3 >> audio_book.mp3 && rm %d.mp3' % (index + 1, index + 1))
+            os.system('pico2wave -l={} -w=/tmp/out.wav "{}" | ffmpeg -i - -ar 48000 -ac 1 -ab 64k -f mp3 {}.mp3 -y'.format(lang, value, index + 1))
+            os.system('cat {}.mp3 >> audio_book.mp3 && rm {}.mp3'.format(index + 1, index + 1))
     os.system('rm /tmp/out.wav')
 
-def print_usage():
-	print(
-	'''Usage: text2wav.py [option] [-i|--input_text_file text_file]
-Without -i option verifies if there is a text copied to clipboard
 
-Options:
--i, --input_text_file   reads a text file
--o, --output-folder   destination folder (defaults to current folder)
--l, --lang  Language (default: "%s")
+def main():
+	parser = argparse.ArgumentParser()
+	parser.add_argument('-i','--infile',help='Input text file.',required=True)
+	parser.add_argument('-l','--lang',help='Language',choices=['en-US','en-GB','de-DE','es-ES','fr-FR','it-IT'],default='en-GB')
+	#parser.add_argument('-o','--outfile',help='Output file',required=True)
+	args = parser.parse_args()
 
-Options lang:
-en-US   English
-en-GB   Great Britain
-de-DE   German
-es-ES   Spanish
-fr-FR   French
-it-IT   Italian
+	with open(args.infile,'r') as rf:
+		txt = rf.read()
+	
+	text_to_speech(txt,args.lang)
 
-Help option:
--h,--help   show this message''' % default_lang)
+	input_text_file = os.path.splitext(args.infile)[0]
+	os.system('mv audio_book.mp3 {}.mp3'.format(input_text_file))
 
-def main(argv):
-    lang = ''
-    input_text_file = ''
-    output_folder = ''
-    txt = ''
-
-    try:
-        opts, args = getopt.getopt(argv, "hi:l:o:", ["help", "input_text_file=", "lang=", "output-folder="])
-    except getopt.GetoptError:
-        sys.exit(2)
-
-    for opt, arg in opts:
-        if opt in ('-h', '--help'):
-            print_usage()
-            sys.exit()
-            
-        if opt in ('-l', '--lang'):
-            lang = arg
-        elif opt in ('-o', '--output-folder'):
-            output_folder = arg
-        elif opt in ('-i', '--input_text_file'):
-            input_text_file = arg
-            txt = text_file(input_text_file)
-
-    text_to_speech(txt,lang)
-
-    input_text_file = os.path.splitext(input_text_file)[0]
-    os.system('mv audio_book.mp3 %s.mp3' %(input_text_file if not output_folder else '%s/%s' % (output_folder, input_text_file)))
-
-    print('Output file = %s.mp3' % input_text_file)
+	print('Output file = %s.mp3' % input_text_file)
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    main()
